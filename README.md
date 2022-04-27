@@ -18,7 +18,7 @@ A collection of Azure Monitor or Sentinel Kusto Queries for your reference.
     - [Table of Contents](#table-of-contents)
     - [Queries](#queries)
         - [Detect Successful SSH Brute Force Attack using watchlist - that extract username list from potention SSH Brute Force Attack](#detect-successful-ssh-brute-force-attack-using-watchlist---that-extract-username-list-from-potention-ssh-brute-force-attack)
-        - [Check specific host IP with SSH authentication failure using uid=0](#check-specific-host-ip-with-ssh-authentication-failure-using-uid-0)
+        - [Check specific host IP with SSH authentication failure using uid=0](#check-specific-host-ip-with-ssh-authentication-failure-using-uid=0)
         - [**Linux add user to group via groupadd**](#linux-add-user-to-group-via-groupadd)
         - [**Linux add user via useradd**](#linux-add-user-via-useradd)
         - [**Linux delete user via userdel**](#linux-delete-user-via-userdel)
