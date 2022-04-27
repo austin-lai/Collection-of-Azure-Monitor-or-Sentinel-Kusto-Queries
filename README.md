@@ -1,6 +1,6 @@
 # Collection of Azure Monitor or Sentinel Kusto Queries
 
-> Austin Lai | March 13th, 2022
+> Austin Lai | April 27th, 2022
 
 ---
 
@@ -17,6 +17,8 @@ A collection of Azure Monitor or Sentinel Kusto Queries for your reference.
 - [Collection of Azure Monitor or Sentinel Kusto Queries](#collection-of-azure-monitor-or-sentinel-kusto-queries)
     - [Table of Contents](#table-of-contents)
     - [Queries](#queries)
+        - [Detect Successful SSH Brute Force Attack using watchlist - that extract username list from potention SSH Brute Force Attack](#detect-successful-ssh-brute-force-attack-using-watchlist---that-extract-username-list-from-potention-ssh-brute-force-attack)
+        - [Check specific host IP with SSH authentication failure using uid=0](#check-specific-host-ip-with-ssh-authentication-failure-using-uid-0)
         - [**Linux add user to group via groupadd**](#linux-add-user-to-group-via-groupadd)
         - [**Linux add user via useradd**](#linux-add-user-via-useradd)
         - [**Linux delete user via userdel**](#linux-delete-user-via-userdel)
@@ -43,6 +45,30 @@ A collection of Azure Monitor or Sentinel Kusto Queries for your reference.
 <!-- /TOC -->
 
 ## Queries
+
+### Detect Successful SSH Brute Force Attack using watchlist - that extract username list from potention SSH Brute Force Attack
+
+```
+Syslog
+| where ProcessName =~ "sshd" 
+| where SyslogMessage contains "Accepted publickey" or SyslogMessage contains "Accepted password"
+| extend
+    user = extract(@"(?:^Accepted publickey for |^Accepted password for )(\S+)", 1, SyslogMessage),
+    ip = extract("(([0-9]{1,3})\\.([0-9]{1,3})\\.([0-9]{1,3})\\.(([0-9]{1,3})))", 1, SyslogMessage),
+    port = extract(@".*?port\s(\S+)", 1, SyslogMessage)
+| where user in ( 
+    ( _GetWatchlist('SSH-Brute-Force-user-list')
+    | project SSHBruteForceUserList))
+```
+
+### Check specific host IP with SSH authentication failure using uid=0
+
+```
+Syslog
+| where HostIP contains "x.x.x.x"
+| where SyslogMessage contains "authentication failure" and SyslogMessage contains " uid=0"
+| parse SyslogMessage with * "rhost=" ExternalIP
+```
 
 ### **Linux add user to group via groupadd**
 
@@ -252,6 +278,66 @@ Syslog
 | extend EventTimes = tostring(EventTimes)
 | summarize StartTimeUtc = min(EventTimes), EndTimeUtc = max(EventTimes), UserList = tostring(makeset(USER)), Count = sum(PerHourCount) by  S_IPaddr, Computer
 | sort by StartTimeUtc desc
+```
+
+OR 
+
+```
+let threshold = 5;
+Syslog
+| where (SyslogMessage contains "Failed password for invalid user" or SyslogMessage contains "invalid user" or SyslogMessage contains "Failed password") 
+| where ProcessName =~ "sshd" 
+//| parse kind=relaxed SyslogMessage with * "invalid user" user " from " ip " port" port " ssh2"
+| extend
+    user = extract(@"(?:^Failed password for invalid user |^Failed password for |^Invalid user )(\S+)", 1, SyslogMessage),
+    ip = extract("(([0-9]{1,3})\\.([0-9]{1,3})\\.([0-9]{1,3})\\.(([0-9]{1,3})))", 1, SyslogMessage),
+    port = extract(@".*?port\s(\S+)", 1, SyslogMessage)
+| project user, ip, port, SyslogMessage, EventTime, Computer
+| summarize EventTimes = make_list(EventTime), PerHourCount = count() by ip, bin(EventTime, 4h), user, Computer
+| where PerHourCount > threshold
+| mvexpand EventTimes
+| extend EventTimes = tostring(EventTimes) 
+| summarize
+    StartTimeUtc = min(EventTimes),
+    EndTimeUtc = max(EventTimes),
+    UserList = makeset(user),
+    sum(PerHourCount)
+    by IPAddress = ip, Computer
+| extend UserList = tostring(UserList) 
+| extend
+    timestamp = StartTimeUtc,
+    IPCustomEntity = IPAddress,
+    AccountCustomEntity = UserList
+```
+
+OR
+
+```
+let threshold = 5;
+Syslog
+| where (SyslogMessage contains "Failed password for invalid user" or SyslogMessage contains "invalid user" or SyslogMessage contains "Failed password") 
+| where ProcessName =~ "sshd" 
+//| parse kind=relaxed SyslogMessage with * "invalid user" user " from " ip " port" port " ssh2"
+| extend
+    user = extract(@"(?:^Failed password for invalid user |^Failed password for |^Invalid user )(\S+)", 1, SyslogMessage),
+    ip = extract("(([0-9]{1,3})\\.([0-9]{1,3})\\.([0-9]{1,3})\\.(([0-9]{1,3})))", 1, SyslogMessage),
+    port = extract(@".*?port\s(\S+)", 1, SyslogMessage)
+| project user, ip, port, SyslogMessage, EventTime, Computer
+| summarize EventTimes = make_list(EventTime), PerHourCount = count() by ip, bin(EventTime, 4h), user, Computer
+| where PerHourCount > threshold
+| mvexpand EventTimes
+| extend EventTimes = tostring(EventTimes) 
+| summarize
+    StartTimeUtc = min(EventTimes),
+    EndTimeUtc = max(EventTimes),
+    UserList = makeset(user),
+    sum(PerHourCount)
+    by IPAddress = ip, Computer
+| extend UserList = tostring(UserList) 
+| extend
+    timestamp = StartTimeUtc,
+    IPCustomEntity = IPAddress,
+    AccountCustomEntity = UserList
 ```
 
 ### **Monitor OPENVPN with MFA used Google Authenticator**
