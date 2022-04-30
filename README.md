@@ -1,6 +1,6 @@
 # Collection of Azure Monitor or Sentinel Kusto Queries
 
-> Austin Lai | April 27th, 2022
+> Austin Lai | April 30th, 2022
 
 ---
 
@@ -17,6 +17,7 @@ A collection of Azure Monitor or Sentinel Kusto Queries for your reference.
 - [Collection of Azure Monitor or Sentinel Kusto Queries](#collection-of-azure-monitor-or-sentinel-kusto-queries)
     - [Table of Contents](#table-of-contents)
     - [Queries](#queries)
+        - [Monitor or Changes in Policy Detected](#monitor-or-changes-in-policy-detected)
         - [Detect Successful SSH Brute Force Attack using watchlist - that extract username list from potention SSH Brute Force Attack](#detect-successful-ssh-brute-force-attack-using-watchlist---that-extract-username-list-from-potention-ssh-brute-force-attack)
         - [Check specific host IP with SSH authentication failure using uid=0](#check-specific-host-ip-with-ssh-authentication-failure-using-uid0)
         - [**Linux add user to group via groupadd**](#linux-add-user-to-group-via-groupadd)
@@ -45,6 +46,15 @@ A collection of Azure Monitor or Sentinel Kusto Queries for your reference.
 <!-- /TOC -->
 
 ## Queries
+
+### Monitor or Changes in Policy Detected
+
+```
+AzureActivity
+| where parse_json(Properties).entity contains "policyDefinitions/XXXXX" or parse_json(Properties).entity contains "policyassignments/XXXXX"
+| where isnotempty(ActivityStatusValue) and isnotnull(Properties_d) == true and isnotnull(parse_json(Properties_d).requestbody)
+| sort by TimeGenerated desc 
+```
 
 ### Detect Successful SSH Brute Force Attack using watchlist - that extract username list from potention SSH Brute Force Attack
 
